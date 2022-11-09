@@ -99,7 +99,7 @@ defmodule GenHerder do
   in the cache, the result is simply returned.
 
   Expiry works by sending a message to the GenServer to drop the given result. There
-  is no guarantee regarding how long the message might be held up in the message box.any()
+  is no guarantee regarding how long the message might be held up in the message inbox.
 
   Since results are computed in tasks, computation does not block the GenServer.
   """
