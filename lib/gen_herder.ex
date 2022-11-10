@@ -105,7 +105,7 @@ defmodule GenHerder do
   """
   @type request :: any
   @type result :: any
-  @type time_to_live :: non_neg_integer() | :infinity
+  @type time_to_live :: integer() | :infinity
 
   @callback handle_request(request) :: result
   @callback time_to_live(result) :: time_to_live
@@ -116,20 +116,31 @@ defmodule GenHerder do
     quote do
       @behaviour GenHerder
 
+      def child_spec(opts) do
+        %{
+          id: __MODULE__,
+          start: {__MODULE__, :start_link, [opts]},
+          type: :worker,
+          restart: :permanent,
+          shutdown: 500
+        }
+      end
+
       def start_link(opts \\ []) do
         children = [
-          {Task.Supervisor, name: __MODULE__.GenHerder.Server.TaskSupervisor},
-          __MODULE__.GenHerder.Server
+          {Task.Supervisor, name: __MODULE__.IntGenHerder.Server.TaskSupervisor},
+          __MODULE__.IntGenHerder.Server
         ]
 
         Supervisor.start_link(children, Keyword.put(opts, :strategy, :one_for_one))
       end
 
       def call(request, timeout \\ 5000) do
-        GenServer.call(__MODULE__.GenHerder.Server, request, timeout)
+        GenServer.call(__MODULE__.IntGenHerder.Server, request, timeout)
       end
 
-      defmodule GenHerder.Server do
+      defmodule IntGenHerder.Server do
+        @moduledoc false
         use GenServer
 
         def start_link(opts \\ []) do

@@ -4,6 +4,7 @@ defmodule GenHerderTest do
   defmodule TokenGenHerder do
     use GenHerder
 
+    @impl GenHerder
     def handle_request(request) do
       # Simulate work
       Process.sleep(2000)
@@ -15,6 +16,7 @@ defmodule GenHerderTest do
       %{access_token: access_token, expires_in: 2000}
     end
 
+    @impl GenHerder
     def time_to_live(%{expires_in: expires_in} = _result) do
       # Make it expire 10% earlier
       trunc(expires_in * 0.9)
@@ -22,12 +24,15 @@ defmodule GenHerderTest do
   end
 
   defmodule FailingGenHerder do
+    alias GenHerderTest.FailingGenHerder
     use GenHerder
 
+    @impl GenHerder
     def handle_request(_request) do
       raise "failure"
     end
 
+    @impl GenHerder
     def time_to_live(_result) do
       :infinity
     end
@@ -36,10 +41,12 @@ defmodule GenHerderTest do
   defmodule NoCacheGenHerder do
     use GenHerder
 
+    @impl GenHerder
     def handle_request(_request) do
       make_ref()
     end
 
+    @impl GenHerder
     def time_to_live(_result) do
       0
     end
@@ -48,10 +55,12 @@ defmodule GenHerderTest do
   defmodule InfinityGenHerder do
     use GenHerder
 
+    @impl GenHerder
     def handle_request(_request) do
       make_ref()
     end
 
+    @impl GenHerder
     def time_to_live(_result) do
       :infinity
     end

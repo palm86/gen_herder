@@ -4,12 +4,13 @@ defmodule GenHerder.MixProject do
   def project do
     [
       app: :gen_herder,
-      version: "0.1.1",
+      version: "0.1.2",
       elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       package: package(),
-      docs: docs()
+      docs: docs(),
+      aliases: aliases()
     ]
   end
 
@@ -37,12 +38,17 @@ defmodule GenHerder.MixProject do
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ex_doc, "~> 0.28.5", only: :dev}
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+      {:ex_doc, "~> 0.28.5", only: :dev},
+      {:credo, "~> 1.6", only: :dev}
+    ]
+  end
+
+  defp aliases do
+    [
+      test: ["test --warnings-as-errors"],
+      compile: ["compile --warnings-as-errors --all-warnings"]
     ]
   end
 end
