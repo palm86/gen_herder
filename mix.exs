@@ -4,13 +4,14 @@ defmodule GenHerder.MixProject do
   def project do
     [
       app: :gen_herder,
-      version: "0.1.2",
+      version: "0.1.3",
       elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       package: package(),
       docs: docs(),
-      aliases: aliases()
+      aliases: aliases(),
+      source_url: "https://github.com/palm86/gen_herder"
     ]
   end
 
@@ -41,7 +42,8 @@ defmodule GenHerder.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.28.5", only: :dev},
-      {:credo, "~> 1.6", only: :dev}
+      {:credo, "~> 1.6", only: :dev},
+      {:dialyxir, "~> 1.3", only: :dev}
     ]
   end
 

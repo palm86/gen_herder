@@ -57,9 +57,8 @@ defmodule GenHerder do
 
   ## Caching
 
-  Valid returns for `c:time_to_live/1` are `:infinity` to cache the result
-  forever, or any integer to cache the result for as many milliseconds. A
-  TTL of `0` or smaller will cause the result to not be cached at all, but
+  The result is cached for as many milliseconds as returned by `c:time_to_live/1`.
+  A TTL of `0` or smaller will cause the result to not be cached at all, but
   still be sent to all callers that made the request prior to its completion.
 
   ## Supervision
@@ -103,9 +102,10 @@ defmodule GenHerder do
 
   Since results are computed in tasks, computation does not block the GenServer.
   """
+
   @type request :: any
   @type result :: any
-  @type time_to_live :: integer() | :infinity
+  @type time_to_live :: integer()
 
   @callback handle_request(request) :: result
   @callback time_to_live(result) :: time_to_live
@@ -136,7 +136,11 @@ defmodule GenHerder do
       end
 
       def call(request, timeout \\ 5000) do
-        GenServer.call(__MODULE__.IntGenHerder.Server, request, timeout)
+        GenServer.call(__MODULE__.IntGenHerder.Server, {:request, request}, timeout)
+      end
+
+      def expire(request, timeout \\ 5000) do
+        GenServer.call(__MODULE__.IntGenHerder.Server, {:expire, request}, timeout)
       end
 
       defmodule IntGenHerder.Server do
@@ -153,21 +157,43 @@ defmodule GenHerder do
         end
 
         @impl true
-        def handle_call(request, from, state) do
+        def handle_call({:request, request}, from, state) do
           case state[request] do
+            # there is no request like this, schedule one
             nil ->
               task =
                 Task.Supervisor.async_nolink(__MODULE__.TaskSupervisor, fn ->
-                  unquote(impl).handle_request(request)
+                  {request, unquote(impl).handle_request(request)}
                 end)
 
               {:noreply, Map.put(state, request, {:task, task, [from]})}
 
+            # there is a pending request, add the caller to the waiting list
             {:task, task, froms} ->
               {:noreply, Map.put(state, request, {:task, task, [from | froms]})}
 
+            # there is a cached result, reply immediately
             {:result, result} ->
               {:reply, result, state}
+
+            {:result, result, timer} ->
+              {:reply, result, state}
+          end
+        end
+
+        @impl true
+        def handle_call({:expire, request}, _from, state) do
+          case state[request] do
+            {:result, _result} ->
+              {:reply, :ok, Map.delete(state, request)}
+
+            {:result, _result, timer} ->
+              Process.cancel_timer(timer)
+              {:reply, :ok, Map.delete(state, request)}
+
+            _ ->
+              # Don't cancel scheduled tasks
+              {:reply, :ok, state}
           end
         end
 
@@ -177,36 +203,31 @@ defmodule GenHerder do
         end
 
         @impl true
-        def handle_info({:DOWN, ref, _, _, reason}, state) do
+        def handle_info({:DOWN, ref, _ref, _process, reason}, state) do
           handle_task_failure(ref, reason, state)
         end
 
-        defp handle_task_success(ref, result, state) do
+        @impl true
+        def handle_info({:result_expired, request}, state) do
+          {:noreply, Map.delete(state, request)}
+        end
+
+        defp handle_task_success(ref, {request, result}, state) do
           # The task succeeded so we can cancel the monitoring and discard the DOWN message
           Process.demonitor(ref, [:flush])
-
-          {request, _task_and_froms} =
-            Enum.find(state, fn
-              {_request, {:task, task, _forms}} -> task.ref == ref
-              _ -> false
-            end)
 
           {{:task, _task, froms}, state} = Map.pop(state, request)
 
           state =
             case unquote(impl).time_to_live(result) do
-              :infinity ->
-                # Keep the result, and don't schedule its removal
-                Map.put(state, request, {:result, result})
-
               ttl when is_integer(ttl) and ttl <= 0 ->
                 # Don't keep the result for future calls
                 state
 
               ttl when is_integer(ttl) ->
                 # Keep the result, and schedule its future removal
-                Process.send_after(self(), {:result_expired, request}, ttl)
-                Map.put(state, request, {:result, result})
+                timer = Process.send_after(self(), {:result_expired, request}, ttl)
+                Map.put(state, request, {:result, result, timer})
             end
 
           # Send the result to everyone that asked for it
@@ -232,11 +253,6 @@ defmodule GenHerder do
           end
 
           {:noreply, state}
-        end
-
-        @impl true
-        def handle_info({:result_expired, request}, state) do
-          {:noreply, Map.delete(state, request)}
         end
       end
     end

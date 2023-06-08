@@ -34,7 +34,7 @@ defmodule GenHerderTest do
 
     @impl GenHerder
     def time_to_live(_result) do
-      :infinity
+      10000
     end
   end
 
@@ -52,23 +52,9 @@ defmodule GenHerderTest do
     end
   end
 
-  defmodule InfinityGenHerder do
-    use GenHerder
-
-    @impl GenHerder
-    def handle_request(_request) do
-      make_ref()
-    end
-
-    @impl GenHerder
-    def time_to_live(_result) do
-      :infinity
-    end
-  end
-
   # doctest GenHerder
 
-  test "subsequent calls with the same request returns the same result" do
+  test "subsequent calls with the same request return the same result" do
     TokenGenHerder.start_link()
 
     {microseconds1, result1} = :timer.tc(TokenGenHerder, :call, ["some_request"])
@@ -79,7 +65,7 @@ defmodule GenHerderTest do
     assert result1 == result2
   end
 
-  test "subsequent calls with the same request returns different results after the ttl expires" do
+  test "subsequent calls with the same request return different results after the ttl expires" do
     TokenGenHerder.start_link()
 
     result1 = TokenGenHerder.call("some_request")
@@ -89,7 +75,17 @@ defmodule GenHerderTest do
     assert result1 != result2
   end
 
-  test "subsequent calls with different requests returns different results" do
+  test "subsequent calls with the same request return different results after an explicit expire" do
+    TokenGenHerder.start_link()
+
+    result1 = TokenGenHerder.call("some_request")
+    :ok = TokenGenHerder.expire("some_request")
+    result2 = TokenGenHerder.call("some_request")
+
+    assert result1 != result2
+  end
+
+  test "subsequent calls with different requests return different results" do
     TokenGenHerder.start_link()
 
     {microseconds1, result1} = :timer.tc(TokenGenHerder, :call, ["some_request"])
@@ -121,15 +117,7 @@ defmodule GenHerderTest do
     assert res1 != res2
   end
 
-  test "ttl :infinity caches result" do
-    InfinityGenHerder.start_link()
-
-    assert res1 = InfinityGenHerder.call("some_request")
-    assert res2 = InfinityGenHerder.call("some_request")
-    assert res1 == res2
-  end
-
-  test "concurrent calls with the same request returns the same result" do
+  test "concurrent calls with the same request return the same result" do
     TokenGenHerder.start_link()
 
     {micros, results} =
