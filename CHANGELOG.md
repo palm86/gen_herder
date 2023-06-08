@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.3]
+
+- Remove `:infinity` option for caching
+- Add `expire/1` function to expire a cached value
+
 ## [0.1.2]
 
 ### Changed
