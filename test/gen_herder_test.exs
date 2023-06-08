@@ -57,12 +57,14 @@ defmodule GenHerderTest do
   test "subsequent calls with the same request return the same result" do
     TokenGenHerder.start_link()
 
-    {microseconds1, result1} = :timer.tc(TokenGenHerder, :call, ["some_request"])
+    {microseconds1, %{access_token: _, expires_in: 2000} = result1} =
+      :timer.tc(TokenGenHerder, :call, ["some_request"])
+
     {microseconds2, result2} = :timer.tc(TokenGenHerder, :call, ["some_request"])
 
     assert microseconds1 > 2000 * 1000
     assert microseconds2 < 2000 * 1000
-    assert result1 == result2
+    assert result1 == result2 |> dbg()
   end
 
   test "subsequent calls with the same request return different results after the ttl expires" do
