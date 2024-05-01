@@ -125,7 +125,7 @@ defmodule GenHerder do
 
   GenHerder employs a supervisor that supervises a GenServer and TaskSupervisor.
 
-  The GenServer keeps track all the processes that make a specific request. On
+  The GenServer keeps track of all the processes that make a specific request. On
   incoming requests, if no such request was seen before (or has expired) a task
   is spawned (supervised by the TaskSupervisor) and the caller is appended to a
   list of callers. If a task has been spawned previously for the request, but

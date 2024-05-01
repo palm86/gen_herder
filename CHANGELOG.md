@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.4]
+
+- Improve documentation
+
 ## [0.1.3]
 
 - Remove `:infinity` option for caching
