@@ -4,20 +4,55 @@ defmodule GenHerder do
 
   ## Rationale
 
-  On a cold cache, it can conceivably happen that several processes attempt
-  in parallel to obtain some data. Each attempt might result in the result
-  being cached, but only subsequent calls would hit the cache.
+  It often happens that various clients request the same compution-heavy
+  data from a server in parallel, resulting in unnecessary computation.
+  The situation, known as the stampeding-herd problem, can be mitigated
+  by caching the result of the computation and returning it to all the
+  clients that made the request. However, on a cold cache, each parallel
+  request would still trigger the computation.
 
   `GenHerder` ensures that, for several concurrent identical calls, the
   result will be computed only once and returned to all the callers.
 
+  ```mermaid
+  sequenceDiagram
+      participant Client1
+      participant Client2
+      participant Client3
+      participant Server
+
+      Note over Client1: Without GenHerder
+
+      Client1 ->> +Server: Request Data
+      Client2 ->> +Server: Request Data
+      Client3 ->> +Server: Request Data
+
+      Server -->> -Client3: Return Result
+      Server -->> -Client2: Return Result
+      Server -->> -Client1: Return Result
+
+      Note over Client1: With GenHerder
+
+      Client1 ->> +Server: Request Data
+      Client2 ->> Server: Request Data
+      Client3 ->> Server: Request Data
+
+      Server -->> -Client3: Return Result
+      Server -->> Client2: Return Result
+      Server -->> Client1: Return Result
+  ```
+
+  The sequence diagram above illustrates the problem and how GenHerder
+  solves it. The depiction is not entirely accurate, but you get the idea.
+
+
   ## Example
 
-  GenHerder abstracts the only-once computing and requires only that
+  `GenHerder` abstracts the only-once computation and requires only that
   the `c:handle_request/1` and `c:time_to_live/1` callbacks be
   implemented.
 
-  Here is a simple token generator that just encodes request
+  Here is a simple fictitious token generator that just encodes requests
   as a result with a random component and expiry baked in.
 
   ```
@@ -32,7 +67,9 @@ defmodule GenHerder do
 
       # Simply encode the request and a random component as the token
       access_token =
-        %{request: request, ref: make_ref()} |> :erlang.term_to_binary() |> Base.encode64()
+        %{request: request, ref: make_ref()}
+        |> :erlang.term_to_binary()
+        |> Base.encode64()
 
       %{access_token: access_token, expires_in: 2000}
     end
@@ -52,14 +89,17 @@ defmodule GenHerder do
   ```
 
   No matter how many times `TokenGenerator.call/1` is called with the same
-  arguments in parallel within the time-to-live, `c:handle_request/1` will
-  be invoked only once.
+  arguments in parallel while the computation is ongoing and within the
+  time-to-live, `c:handle_request/1` will be invoked only once.
 
   ## Caching
 
   The result is cached for as many milliseconds as returned by `c:time_to_live/1`.
   A TTL of `0` or smaller will cause the result to not be cached at all, but
   still be sent to all callers that made the request prior to its completion.
+
+  `GenHerder` is not a general-purpose caching mechanism. It is advisable to set
+  the TTL to 0 and use a dedicated caching solution instead.
 
   ## Supervision
 

@@ -35,15 +35,25 @@ defmodule GenHerder.MixProject do
   defp docs() do
     [
       extra_section: false,
-      main: "GenHerder"
+      main: "GenHerder",
+      before_closing_body_tag: fn
+        :html ->
+          """
+          <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+          <script>mermaid.initialize({startOnLoad: true, theme: document.body.className.includes("dark") ? "dark" : "default"})</script>
+          """
+
+        _ ->
+          ""
+      end
     ]
   end
 
   defp deps do
     [
-      {:ex_doc, "~> 0.28.5", only: :dev},
-      {:credo, "~> 1.6", only: :dev},
-      {:dialyxir, "~> 1.3", only: :dev}
+      {:ex_doc, "~> 0.28.5", only: :dev, runtime: false},
+      {:credo, "~> 1.6", only: :dev, runtime: false},
+      {:dialyxir, "~> 1.3", only: :dev, runtime: false}
     ]
   end
 
